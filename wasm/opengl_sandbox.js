@@ -8623,25 +8623,6 @@ var ASM_CONSTS = {
       GLFW.getCursorPos(winid, x, y);
     }
 
-  function _glfwGetFramebufferSize(winid, width, height) {
-      var ww = 0;
-      var wh = 0;
-  
-      var win = GLFW.WindowFromId(winid);
-      if (win) {
-        ww = win.width;
-        wh = win.height;
-      }
-  
-      if (width) {
-        setValue(width, ww, 'i32');
-      }
-  
-      if (height) {
-        setValue(height, wh, 'i32');
-      }
-    }
-
   function _glfwGetInputMode(winid, mode) {
       var win = GLFW.WindowFromId(winid);
       if (!win) return;
@@ -8661,10 +8642,6 @@ var ASM_CONSTS = {
 
   function _glfwGetTime() {
       return GLFW.getTime() - GLFW.initialTime;
-    }
-
-  function _glfwGetWindowSize(winid, width, height) {
-      GLFW.getWindowSize(winid, width, height);
     }
 
   function _glfwInit() {
@@ -9995,10 +9972,8 @@ var asmLibraryArg = {
   "glfwDestroyWindow": _glfwDestroyWindow,
   "glfwGetClipboardString": _glfwGetClipboardString,
   "glfwGetCursorPos": _glfwGetCursorPos,
-  "glfwGetFramebufferSize": _glfwGetFramebufferSize,
   "glfwGetInputMode": _glfwGetInputMode,
   "glfwGetTime": _glfwGetTime,
-  "glfwGetWindowSize": _glfwGetWindowSize,
   "glfwInit": _glfwInit,
   "glfwMakeContextCurrent": _glfwMakeContextCurrent,
   "glfwPollEvents": _glfwPollEvents,
