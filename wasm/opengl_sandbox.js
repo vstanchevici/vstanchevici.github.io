@@ -512,13 +512,6 @@ function addFunction(func, sig) {
 
   // It's not in the table, add it now.
 
-  // Make sure functionsInTableMap is actually up to date, that is, that this
-  // function is not actually in the wasm Table despite not being tracked in
-  // functionsInTableMap.
-  for (var i = 0; i < wasmTable.length; i++) {
-    assert(getWasmTableEntry(i) != func, 'function in Table but not functionsInTableMap');
-  }
-
   var ret = getEmptyTableSlot();
 
   // Set the new value.
@@ -1237,7 +1230,7 @@ function updateGlobalBufferAndViews(buf) {
 var TOTAL_STACK = 5242880;
 if (Module['TOTAL_STACK']) assert(TOTAL_STACK === Module['TOTAL_STACK'], 'the stack size can no longer be determined at runtime')
 
-var INITIAL_MEMORY = Module['INITIAL_MEMORY'] || 1073741824;legacyModuleProp('INITIAL_MEMORY', 'INITIAL_MEMORY');
+var INITIAL_MEMORY = Module['INITIAL_MEMORY'] || 268435456;legacyModuleProp('INITIAL_MEMORY', 'INITIAL_MEMORY');
 
 assert(INITIAL_MEMORY >= TOTAL_STACK, 'INITIAL_MEMORY should be larger than TOTAL_STACK, was ' + INITIAL_MEMORY + '! (TOTAL_STACK=' + TOTAL_STACK + ')');
 
@@ -1247,7 +1240,7 @@ assert(typeof Int32Array != 'undefined' && typeof Float64Array !== 'undefined' &
 
 // If memory is defined in wasm, the user can't provide it.
 assert(!Module['wasmMemory'], 'Use of `wasmMemory` detected.  Use -sIMPORTED_MEMORY to define wasmMemory externally');
-assert(INITIAL_MEMORY == 1073741824, 'Detected runtime INITIAL_MEMORY setting.  Use -sIMPORTED_MEMORY to define wasmMemory dynamically');
+assert(INITIAL_MEMORY == 268435456, 'Detected runtime INITIAL_MEMORY setting.  Use -sIMPORTED_MEMORY to define wasmMemory dynamically');
 
 // include: runtime_init_table.js
 // In regular non-RELOCATABLE mode the table is exported
@@ -1326,7 +1319,6 @@ function initRuntime() {
   assert(!runtimeInitialized);
   runtimeInitialized = true;
 
-  ___set_stack_limits(_emscripten_stack_get_base(), _emscripten_stack_get_end());
   
 if (!Module["noFSInit"] && !FS.init.initialized)
   FS.init();
@@ -1626,7 +1618,7 @@ function createWasm() {
     // This assertion doesn't hold when emscripten is run in --post-link
     // mode.
     // TODO(sbc): Read INITIAL_MEMORY out of the wasm file in post-link mode.
-    //assert(wasmMemory.buffer.byteLength === 1073741824);
+    //assert(wasmMemory.buffer.byteLength === 268435456);
     updateGlobalBufferAndViews(wasmMemory.buffer);
 
     wasmTable = Module['asm']['__indirect_function_table'];
@@ -1767,34 +1759,8 @@ var ASM_CONSTS = {
       return ret;
     }
   function demangle(func) {
-      // If demangle has failed before, stop demangling any further function names
-      // This avoids an infinite recursion with malloc()->abort()->stackTrace()->demangle()->malloc()->...
-      demangle.recursionGuard = (demangle.recursionGuard|0)+1;
-      if (demangle.recursionGuard > 1) return func;
-      var __cxa_demangle_func = Module['___cxa_demangle'] || Module['__cxa_demangle'];
-      assert(__cxa_demangle_func);
-      return withStackSave(function() {
-        try {
-          var s = func;
-          if (s.startsWith('__Z'))
-            s = s.substr(1);
-          var len = lengthBytesUTF8(s)+1;
-          var buf = stackAlloc(len);
-          stringToUTF8(s, buf, len);
-          var status = stackAlloc(4);
-          var ret = __cxa_demangle_func(buf, 0, 0, status);
-          if (HEAP32[((status)>>2)] === 0 && ret) {
-            return UTF8ToString(ret);
-          }
-          // otherwise, libcxxabi failed
-        } catch(e) {
-        } finally {
-          _free(ret);
-          if (demangle.recursionGuard < 2) --demangle.recursionGuard;
-        }
-        // failure when using libcxxabi, don't demangle
-        return func;
-      });
+      warnOnce('warning: build with -sDEMANGLE_SUPPORT to link in libcxxabi demangling');
+      return func;
     }
 
   function demangleAll(text) {
@@ -1859,10 +1825,6 @@ var ASM_CONSTS = {
       var js = jsStackTrace();
       if (Module['extraStackTrace']) js += '\n' + Module['extraStackTrace']();
       return demangleAll(js);
-    }
-
-  function ___assert_fail(condition, filename, line, func) {
-      abort('Assertion failed: ' + UTF8ToString(condition) + ', at: ' + [filename ? UTF8ToString(filename) : 'unknown filename', line, func ? UTF8ToString(func) : 'unknown function']);
     }
 
   function ___cxa_allocate_exception(size) {
@@ -1971,13 +1933,6 @@ var ASM_CONSTS = {
       exceptionLast = ptr;
       uncaughtExceptionCount++;
       throw ptr + " - Exception catching is disabled, this exception cannot be caught. Compile with -sNO_DISABLE_EXCEPTION_CATCHING or -sEXCEPTION_CATCHING_ALLOWED=[..] to catch.";
-    }
-
-  function ___handle_stack_overflow(requested) {
-      requested = requested >>> 0;
-      abort('stack overflow (Attempt to set SP to 0x' + requested.toString(16) +
-            ', with stack limits [0x' + _emscripten_stack_get_end().toString(16) +
-            ' - 0x' + _emscripten_stack_get_base().toString(16) + '])');
     }
 
   function setErrNo(value) {
@@ -6768,7 +6723,7 @@ var ASM_CONSTS = {
       // full 4GB Wasm memories, the size will wrap back to 0 bytes in Wasm side
       // for any code that deals with heap sizes, which would require special
       // casing all heap size related code to treat 0 specially.
-      return 2147483648;
+      return 1073741824;
     }
   
   function emscripten_realloc_buffer(size) {
@@ -6827,10 +6782,7 @@ var ASM_CONSTS = {
   
         var newSize = Math.min(maxHeapSize, alignUp(Math.max(requestedSize, overGrownHeapSize), 65536));
   
-        var t0 = _emscripten_get_now();
         var replacement = emscripten_realloc_buffer(newSize);
-        var t1 = _emscripten_get_now();
-        out('Heap resize call from ' + oldSize + ' to ' + newSize + ' took ' + (t1 - t0) + ' msecs. Success: ' + !!replacement);
         if (replacement) {
   
           return true;
@@ -7370,12 +7322,6 @@ var ASM_CONSTS = {
       return GLctx.getAttribLocation(GL.programs[program], UTF8ToString(name));
     }
 
-  function _glGetError() {
-      var error = GLctx.getError() || GL.lastError;
-      GL.lastError = 0/*GL_NO_ERROR*/;
-      return error;
-    }
-
   function readI53FromI64(ptr) {
       return HEAPU32[ptr>>2] + HEAP32[ptr+4>>2] * 4294967296;
     }
@@ -7818,6 +7764,10 @@ var ASM_CONSTS = {
         GL.recordError(0x502/*GL_INVALID_OPERATION*/);
       }
     }
+  function _glUniform1f(location, v0) {
+      GLctx.uniform1f(webglGetUniformLocation(location), v0);
+    }
+
   function _glUniform1i(location, v0) {
       GLctx.uniform1i(webglGetUniformLocation(location), v0);
     }
@@ -9361,7 +9311,7 @@ var ASM_CONSTS = {
   
           /* Model matrix */
           const modelMatrix = views + SIZE_OF_WEBXR_VIEW*2;
-          WebXR._nativize_matrix(modelMatrix, pose.transform.matrix);
+          WebXR._nativize_rigid_transform(modelMatrix, pose.transform);
   
           /* If framebuffer is non-null, compositor is enabled and we bind it.
            * If it's null, we need to avoid this call otherwise the canvas FBO is bound */
@@ -9482,8 +9432,12 @@ var ASM_CONSTS = {
       if(s) s(mode);
   }
 
-  function _webxr_set_select_callback(callback, userData) {
-      WebXR._set_input_callback("select", callback, userData);
+  function _webxr_set_projection_params(near, far) {
+      var s = Module['webxr_session'];
+      if(!s) return;
+  
+      s.depthNear = near;
+      s.depthFar = far;
   }
 
   function _webxr_set_select_end_callback(callback, userData) {
@@ -9942,10 +9896,8 @@ function checkIncomingModuleAPI() {
   ignoredModuleProp('fetchSettings');
 }
 var asmLibraryArg = {
-  "__assert_fail": ___assert_fail,
   "__cxa_allocate_exception": ___cxa_allocate_exception,
   "__cxa_throw": ___cxa_throw,
-  "__handle_stack_overflow": ___handle_stack_overflow,
   "__syscall_fcntl64": ___syscall_fcntl64,
   "__syscall_ioctl": ___syscall_ioctl,
   "__syscall_openat": ___syscall_openat,
@@ -10018,7 +9970,6 @@ var asmLibraryArg = {
   "glGenVertexArrays": _glGenVertexArrays,
   "glGenerateMipmap": _glGenerateMipmap,
   "glGetAttribLocation": _glGetAttribLocation,
-  "glGetError": _glGetError,
   "glGetIntegerv": _glGetIntegerv,
   "glGetProgramInfoLog": _glGetProgramInfoLog,
   "glGetProgramiv": _glGetProgramiv,
@@ -10031,6 +9982,7 @@ var asmLibraryArg = {
   "glShaderSource": _glShaderSource,
   "glTexImage2D": _glTexImage2D,
   "glTexParameteri": _glTexParameteri,
+  "glUniform1f": _glUniform1f,
   "glUniform1i": _glUniform1i,
   "glUniform3fv": _glUniform3fv,
   "glUniformMatrix4fv": _glUniformMatrix4fv,
@@ -10076,7 +10028,7 @@ var asmLibraryArg = {
   "webxr_init": _webxr_init,
   "webxr_is_session_supported": _webxr_is_session_supported,
   "webxr_request_session": _webxr_request_session,
-  "webxr_set_select_callback": _webxr_set_select_callback,
+  "webxr_set_projection_params": _webxr_set_projection_params,
   "webxr_set_select_end_callback": _webxr_set_select_end_callback,
   "webxr_set_select_start_callback": _webxr_set_select_start_callback
 };
@@ -10141,13 +10093,7 @@ var stackRestore = Module["stackRestore"] = createExportWrapper("stackRestore");
 var stackAlloc = Module["stackAlloc"] = createExportWrapper("stackAlloc");
 
 /** @type {function(...*):?} */
-var ___cxa_demangle = Module["___cxa_demangle"] = createExportWrapper("__cxa_demangle");
-
-/** @type {function(...*):?} */
 var ___cxa_is_pointer_type = Module["___cxa_is_pointer_type"] = createExportWrapper("__cxa_is_pointer_type");
-
-/** @type {function(...*):?} */
-var ___set_stack_limits = Module["___set_stack_limits"] = createExportWrapper("__set_stack_limits");
 
 /** @type {function(...*):?} */
 var dynCall_iiiii = Module["dynCall_iiiii"] = createExportWrapper("dynCall_iiiii");
