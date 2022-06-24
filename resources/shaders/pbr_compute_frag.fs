@@ -229,7 +229,7 @@ void main()
 	
 	// lightIntensity is the illuminance
     // at perpendicular incidence in lux
-    float lightIntensity = 5.f; //lux
+    float lightIntensity = 4.f; //lux
     float illuminance = lightIntensity * NdotL;
     color *= illuminance;
     
