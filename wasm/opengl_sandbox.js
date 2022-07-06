@@ -7383,28 +7383,31 @@ var ASM_CONSTS = {
       GLctx.uniform3fv(webglGetUniformLocation(location), view);
     }
 
-  var __miniTempWebGLIntBuffers = [];
-  function _glUniform4iv(location, count, value) {
+  function _glUniform4fv(location, count, value) {
   
       if (GL.currentContext.version >= 2) { // WebGL 2 provides new garbage-free entry points to call to WebGL. Use those always when possible.
-        GLctx.uniform4iv(webglGetUniformLocation(location), HEAP32, value>>2, count*4);
+        GLctx.uniform4fv(webglGetUniformLocation(location), HEAPF32, value>>2, count*4);
         return;
       }
   
       if (count <= 72) {
         // avoid allocation when uploading few enough uniforms
-        var view = __miniTempWebGLIntBuffers[4*count-1];
-        for (var i = 0; i < 4*count; i += 4) {
-          view[i] = HEAP32[(((value)+(4*i))>>2)];
-          view[i+1] = HEAP32[(((value)+(4*i+4))>>2)];
-          view[i+2] = HEAP32[(((value)+(4*i+8))>>2)];
-          view[i+3] = HEAP32[(((value)+(4*i+12))>>2)];
+        var view = miniTempWebGLFloatBuffers[4*count-1];
+        // hoist the heap out of the loop for size and for pthreads+growth.
+        var heap = HEAPF32;
+        value >>= 2;
+        for (var i = 0; i < 4 * count; i += 4) {
+          var dst = value + i;
+          view[i] = heap[dst];
+          view[i + 1] = heap[dst + 1];
+          view[i + 2] = heap[dst + 2];
+          view[i + 3] = heap[dst + 3];
         }
       } else
       {
-        var view = HEAP32.subarray((value)>>2, (value+count*16)>>2);
+        var view = HEAPF32.subarray((value)>>2, (value+count*16)>>2);
       }
-      GLctx.uniform4iv(webglGetUniformLocation(location), view);
+      GLctx.uniform4fv(webglGetUniformLocation(location), view);
     }
 
   function _glUniformMatrix4fv(location, count, transpose, value) {
@@ -8740,11 +8743,6 @@ var miniTempWebGLFloatBuffersStorage = new Float32Array(288);
   miniTempWebGLFloatBuffers[i] = miniTempWebGLFloatBuffersStorage.subarray(0, i+1);
   }
   ;
-var __miniTempWebGLIntBuffersStorage = new Int32Array(288);
-  for (/**@suppress{duplicate}*/var i = 0; i < 288; ++i) {
-  __miniTempWebGLIntBuffers[i] = __miniTempWebGLIntBuffersStorage.subarray(0, i+1);
-  }
-  ;
 var ASSERTIONS = false;
 
 
@@ -8870,7 +8868,7 @@ var asmLibraryArg = {
   "glTexParameteri": _glTexParameteri,
   "glUniform1i": _glUniform1i,
   "glUniform3fv": _glUniform3fv,
-  "glUniform4iv": _glUniform4iv,
+  "glUniform4fv": _glUniform4fv,
   "glUniformMatrix4fv": _glUniformMatrix4fv,
   "glUseProgram": _glUseProgram,
   "glVertexAttribDivisor": _glVertexAttribDivisor,
