@@ -7164,7 +7164,13 @@ var ASM_CONSTS = {
       GLctx['bindVertexArray'](GL.vaos[vao]);
     }
 
+  function _glBlendEquation(x0) { GLctx['blendEquation'](x0) }
+
+  function _glBlendEquationSeparate(x0, x1) { GLctx['blendEquationSeparate'](x0, x1) }
+
   function _glBlendFunc(x0, x1) { GLctx['blendFunc'](x0, x1) }
+
+  function _glBlendFuncSeparate(x0, x1, x2, x3) { GLctx['blendFuncSeparate'](x0, x1, x2, x3) }
 
   function _glBufferData(target, size, data, usage) {
   
@@ -7683,6 +7689,8 @@ var ASM_CONSTS = {
       return -1;
     }
 
+  function _glIsEnabled(x0) { return GLctx['isEnabled'](x0) }
+
   function _glLinkProgram(program) {
       program = GL.programs[program];
       GLctx.linkProgram(program);
@@ -7691,6 +7699,8 @@ var ASM_CONSTS = {
       program.uniformSizeAndIdsByName = {};
   
     }
+
+  function _glScissor(x0, x1, x2, x3) { GLctx['scissor'](x0, x1, x2, x3) }
 
   function _glShaderSource(shader, count, string, length) {
       var source = GL.getSource(shader, count, string, length);
@@ -9404,7 +9414,10 @@ var asmLibraryArg = {
   "glBindFramebuffer": _glBindFramebuffer,
   "glBindTexture": _glBindTexture,
   "glBindVertexArray": _glBindVertexArray,
+  "glBlendEquation": _glBlendEquation,
+  "glBlendEquationSeparate": _glBlendEquationSeparate,
   "glBlendFunc": _glBlendFunc,
+  "glBlendFuncSeparate": _glBlendFuncSeparate,
   "glBufferData": _glBufferData,
   "glCheckFramebufferStatus": _glCheckFramebufferStatus,
   "glClear": _glClear,
@@ -9440,7 +9453,9 @@ var asmLibraryArg = {
   "glGetShaderInfoLog": _glGetShaderInfoLog,
   "glGetShaderiv": _glGetShaderiv,
   "glGetUniformLocation": _glGetUniformLocation,
+  "glIsEnabled": _glIsEnabled,
   "glLinkProgram": _glLinkProgram,
+  "glScissor": _glScissor,
   "glShaderSource": _glShaderSource,
   "glTexImage2D": _glTexImage2D,
   "glTexParameterfv": _glTexParameterfv,
